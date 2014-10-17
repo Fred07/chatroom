@@ -3,14 +3,15 @@ var Group = function(){
 	this.people = new Array();
 }
 
-Group.prototype.addPeople = function( p_id, p_name){
+Group.prototype.addPeople = function( p_id, p_name, room){
 
-	this.people[p_id] = new Array();
-	this.people[p_id]['name'] = p_name;
+	this.people[room][p_id] = new Array();
+	this.people[room][p_id]['name'] = p_name;
 	this.total++;
 }
 
 Group.prototype.removePeople = function( p_id ) {
+
 	delete this.people[p_id];
 	this.total--;
 }
@@ -27,8 +28,9 @@ Group.prototype.getPeopleName = function( p_id ) {
 	return this.people[p_id]['name'];
 }
 
-/*Group.prototype.inRoom = function(room) {
-	
-}*/
+Group.prototype.inRoom = function(room) {
+	var tmpGroup = this;
+	return tmpGroup.people[room];
+}
 
 module.exports = Group;

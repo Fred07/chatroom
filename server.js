@@ -5,9 +5,6 @@ var io = require('socket.io')(http);
 var Group = require('./group');
 var group = new Group();
 
-var default_room = 'room1';
-var room = 'room1';
-
 //route
 app.get('/', function(req, res){
   res.send('<h1>index!</h1>');
@@ -21,7 +18,7 @@ io.on('connection', function(socket){
 	console.log('a user connected: id ' + socket.id);
 
 	//event: join
-	socket.on('join', function(userName){
+	socket.on('join', function(userName, room){
 		console.log(userName + ' joined ');
 		socket.join(room);
 	
@@ -29,7 +26,7 @@ io.on('connection', function(socket){
 		socket.broadcast.to(room).emit('chat_message', userName + ' 進到了聊天室!');
 		
 		//add people
-		group.addPeople(socket.id, userName);
+		group.addPeople(socket.id, userName, room);
 	});
 
 	//event: disconnect
