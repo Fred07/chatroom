@@ -3,9 +3,11 @@ var http = require('http').createServer(app);
 var io = require('socket.io')(http);
 
 var Group = require('./group');
-
-//var people = new Array();
 var group = new Group();
+
+var default_room = 'room1';
+var room = 'room1';
+
 //route
 app.get('/', function(req, res){
   res.send('<h1>index!</h1>');
@@ -20,14 +22,13 @@ io.on('connection', function(socket){
 
 	//event: join
 	socket.on('join', function(userName){
-		socket.broadcast.emit('chat_message', userName + ' 進到了聊天室!');
-
-		//set people
-		//people[socket.id] = new Array();
-		//people[socket.id]['userName'] = userName;
-		//people[socket.id]['loginTime'] = new Date();
+		console.log(userName + ' joined ');
+		socket.join(room);
+	
+		//broadcast
+		socket.broadcast.to(room).emit('chat_message', userName + ' 進到了聊天室!');
 		
-		//test
+		//add people
 		group.addPeople(socket.id, userName);
 	});
 
@@ -35,17 +36,18 @@ io.on('connection', function(socket){
 	socket.on('disconnect', function(){
 		console.log('user disconnected: id ' + socket.id);
 		
-		socket.broadcast.emit('chat_message', group.getPeopleName(socket.id) + ' 離開了聊天室!');
+		//broadcast
+		socket.broadcast.to(room).emit('chat_message', group.getPeopleName(socket.id) + ' 離開了聊天室!');
 		
+		//remove people
 		group.removePeople(socket.id);
-		
 	});
 
 	//event: chat_message
 	socket.on('chat_message', function(msg){
 		console.log('message: ' + msg + ' from id ' + socket.id);
 
-		io.emit('chat_message', group.getPeopleName(socket.id) + ': ' + msg);
+		io.in(room).emit('chat_message', group.getPeopleName(socket.id) + ': ' + msg);
 	});
 });
 
@@ -53,3 +55,20 @@ io.on('connection', function(socket){
 http.listen(8001, function(){
 	console.log('listening on *:8001');
 });
+
+
+update_total_people();
+function update_total_people() {
+
+	var results = {};
+	results['total'] = group.total;
+	results['members'] = group.getAllPeopleName();
+
+	//udpate every 15 sec. (JSON)
+	setTimeout(function(){
+	
+		io.emit('total_people', JSON.stringify(results));
+		update_total_people();
+
+	}, 15000);
+}
