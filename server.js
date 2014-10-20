@@ -2,8 +2,8 @@ var app = require('express')();
 var http = require('http').createServer(app);
 var io = require('socket.io')(http);
 
-var Group = require('./group');
-var group = new Group();
+var Lobby = require('./lobby');
+var lobby = new Lobby();
 
 //route
 app.get('/', function(req, res){
@@ -15,36 +15,46 @@ app.get('/chat.html', function(req, res){
 
 //socket.io
 io.on('connection', function(socket){
-	console.log('a user connected: id ' + socket.id);
 
-	//event: join
-	socket.on('join', function(userName, room){
-		console.log(userName + ' joined ');
-		socket.join(room);
+	socket.on('join', function(name, roomId){
 	
-		//broadcast
-		socket.broadcast.to(room).emit('chat_message', userName + ' 進到了聊天室!');
+		console.log( 'ID: ' + socket.id + ', Name: ' + name + ' joined ' + roomId);	//log
 		
-		//add people
-		group.addPeople(socket.id, userName, room);
+		//broadcast
+		socket.broadcast.to(roomId).emit('chat_message', name + ' 進到了聊天室!');
+		
+		//object setting
+		if ( lobby.addRoom(roomId) ) {
+			//register to update room info
+			update_room_info(roomId);
+		}
+		lobby.inRoom(roomId).addClient(socket.id, name);
+		
+		//socket setting
+		socket.join(roomId);
+		socket.roomId = roomId;
 	});
-
-	//event: disconnect
+	
 	socket.on('disconnect', function(){
-		console.log('user disconnected: id ' + socket.id);
+	
+		console.log('user disconnected: id ' + socket.id);	//log
 		
 		//broadcast
-		socket.broadcast.to(room).emit('chat_message', group.getPeopleName(socket.id) + ' 離開了聊天室!');
+		socket.broadcast.to(socket.roomId).emit('chat_message', lobby.inRoom(socket.roomId).getClient(socket.id).getName() + ' 離開了聊天室!');
 		
-		//remove people
-		group.removePeople(socket.id);
+		//remove client
+		lobby.inRoom(socket.roomId).removeClient(socket.id);
+		
+		//check room client number
+		if ( lobby.inRoom(socket.roomId).count() == 0 ) {
+			delete lobby.closeRoom( socket.roomId );
+		}
 	});
 
-	//event: chat_message
 	socket.on('chat_message', function(msg){
 		console.log('message: ' + msg + ' from id ' + socket.id);
 
-		io.in(room).emit('chat_message', group.getPeopleName(socket.id) + ': ' + msg);
+		io.in(socket.roomId).emit('chat_message', lobby.inRoom(socket.roomId).getClient(socket.id).getName() + ': ' + msg);
 	});
 });
 
@@ -53,19 +63,38 @@ http.listen(8001, function(){
 	console.log('listening on *:8001');
 });
 
-
-update_total_people();
-function update_total_people() {
-
-	var results = {};
-	results['total'] = group.total;
-	results['members'] = group.getAllPeopleName();
-
-	//udpate every 15 sec. (JSON)
+//lobby info.
+update_lobby_info();
+function update_lobby_info() {
+	
 	setTimeout(function(){
 	
-		io.emit('total_people', JSON.stringify(results));
-		update_total_people();
+		var results = {};
+		results['total_room'] = lobby.count();		//room number
+		results['room_list'] = lobby.getRoomList();	//room list
+	
+		io.emit('lobby_info', JSON.stringify(results));
+		update_lobby_info();
+	}, 10000);
+}
 
-	}, 15000);
+
+
+//update info until there is no client.
+function update_room_info( roomId ) {
+
+	setTimeout(function(){
+	
+		var results = {};
+		results['total_client'] = lobby.inRoom(roomId).count();
+		results['client_list'] = lobby.inRoom(roomId).getAllClientNameList();
+	
+		if ( lobby.inRoom(roomId).count() > 0) {
+			io.in(roomId).emit('room_info', JSON.stringify(results));
+			update_room_info(roomId);
+		} else {
+			//stop recursive
+			return;
+		}
+	}, 10000);
 }

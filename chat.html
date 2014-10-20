@@ -24,7 +24,7 @@
 	</div>
 	
 	<div id="chat_room" style="display:none;">
-		<button id="btn_exit_chatroom">離開聊天室</button><span>目前人數: <span id="total_people">0</span></span>
+		<button id="btn_exit_chatroom">離開聊天室</button><span>目前總房間數: <span id="total_room">0</span></span><span>房間目前人數: <span id="total_people">0</span></span>
 		<ul id="messages"></ul>
 		<form action="">
 		  <input id="m" autocomplete="off" /><button>Send</button>
@@ -96,10 +96,18 @@
 			alert('你已經斷線，請重新連線');
 		});
 		
-		socket.on('total_people', function(response){
+		//room info.
+		socket.on('room_info', function(response){
 			var data = JSON.parse(response);
-			$('#total_people').html(data.total);
-			//console.log(data.members);		//data.members => user in room
+			$('#total_people').html(data.total_client);
+			console.log(data.client_list);
+		});
+		
+		//lobby info.
+		socket.on('lobby_info', function(response){
+			var data = JSON.parse(response);
+			$('#total_room').html(data.total_room);
+			console.log(data.room_list);
 		});
 	}
 	</script>	
