@@ -17,15 +17,16 @@ Lobby.prototype.getRoomList = function() {
 	return results;
 }
 
-Lobby.prototype.addRoom = function( roomId ) {
+Lobby.prototype.addRoom = function( roomId, callback ) {
 	if ( typeof this.rooms[roomId] == 'undefined' ) {
 		this.rooms[roomId] = new Room(roomId);
 		this.total++;
 		
-		return true;
+		callback();
+		return;
 	} else {
 		//already exist
-		return false;
+		return;
 	}
 }
 
@@ -33,7 +34,7 @@ Lobby.prototype.inRoom = function( roomId ) {
 	if (typeof this.rooms[roomId] != 'undefined' ) {
 		return this.rooms[roomId];
 	} else {
-		return false;
+		return this.rooms[roomId];
 	}
 }
 

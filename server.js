@@ -24,10 +24,12 @@ io.on('connection', function(socket){
 		socket.broadcast.to(roomId).emit('chat_message', name + ' 進到了聊天室!');
 		
 		//object setting
-		if ( lobby.addRoom(roomId) ) {
-			//register to update room info
-			update_room_info(roomId);
-		}
+		lobby.addRoom(roomId, function(){
+		
+			//register update room info.
+			update_room_info(roomId)
+		});
+			
 		lobby.inRoom(roomId).addClient(socket.id, name);
 		
 		//socket setting
@@ -79,17 +81,18 @@ function update_lobby_info() {
 }
 
 
-
 //update info until there is no client.
 function update_room_info( roomId ) {
 
 	setTimeout(function(){
 	
-		var results = {};
-		results['total_client'] = lobby.inRoom(roomId).count();
-		results['client_list'] = lobby.inRoom(roomId).getAllClientNameList();
-	
-		if ( lobby.inRoom(roomId).count() > 0) {
+		var r = lobby.inRoom(roomId);	//r 回傳 Room object or undefined object
+		if ( typeof r != 'undefined' && r.count() > 0 ) {
+		
+			var results = {};
+			results['total_client'] = r.count();
+			results['client_list'] = r.getAllClientNameList();
+		
 			io.in(roomId).emit('room_info', JSON.stringify(results));
 			update_room_info(roomId);
 		} else {
