@@ -100,14 +100,14 @@
 		socket.on('room_info', function(response){
 			var data = JSON.parse(response);
 			$('#total_people').html(data.total_client);
-			console.log(data.client_list);
+			console.log('client_list: ' + data.client_list);
 		});
 		
 		//lobby info.
 		socket.on('lobby_info', function(response){
 			var data = JSON.parse(response);
 			$('#total_room').html(data.total_room);
-			console.log(data.room_list);
+			console.log('room_list: ' + data.room_list);
 		});
 	}
 	</script>	
