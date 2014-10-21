@@ -9,7 +9,9 @@
       form { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
       form input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
       form button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
-      #messages { list-style-type: none; margin: 0; padding: 0; }
+	  #chat_room {padding-bottom:100px;}
+	  #info_bar {background: #FFF; padding: 3px; position: fixed; top: 0; width: 100%; }
+      #messages { list-style-type: none; margin: 0; padding: 0; padding-top:20px; }
       #messages li { padding: 5px 10px; }
       #messages li:nth-child(odd) { background: #eee; }
     </style>
@@ -17,14 +19,16 @@
 	<script src="/socket.io/socket.io.js"></script>
   </head>
   <body>
-  
 	<div id="login_form">
 		<input type="text" id="username" value="" /><button id="trigger" >確認</button>
 		<select id="room"><option valuej="room1">room1</option><option value="room2">room2</option></select>
 	</div>
 	
-	<div id="chat_room" style="display:none;">
+	<div id="info_bar" style="display:none;">
 		<button id="btn_exit_chatroom">離開聊天室</button><span>目前總房間數: <span id="total_room">0</span></span><span>房間目前人數: <span id="total_people">0</span></span>
+	</div>
+	
+	<div id="chat_room" style="display:none;">
 		<ul id="messages"></ul>
 		<form action="">
 		  <input id="m" autocomplete="off" /><button>Send</button>
@@ -49,6 +53,7 @@
 		$('form').submit(function(){
 			socket.emit('chat_message', $('#m').val());
 			$('#m').val('');
+
 			return false;
 		});
 		
@@ -59,16 +64,23 @@
 		});
 	});
 
+	function scrollToBottom() {
+		//scroll to bottom
+		window.scrollTo(0,document.body.scrollHeight);
+	}
+	
 	function open_chatroom(){
 
 		start_chat($('#username').val(), $('#room').val(), function(){
 			$('#login_form').hide();
+			$('#info_bar').fadeIn();
 			$('#chat_room').fadeIn();
 		});
 	}
 	
 	function close_chatroom(){
 		$('#login_form').show();
+		$('#info_bar').hide();
 		$('#chat_room').hide();
 	}
 	
@@ -87,7 +99,11 @@
 		});
 		
 		socket.on('chat_message', function(msg){
+			//append msg
 			$('#messages').append($('<li>').text(msg));
+			
+			//scroll bar
+			scrollToBottom();
 		});
 		
 		socket.on('reconnect_failed', function(){
