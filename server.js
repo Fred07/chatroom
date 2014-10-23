@@ -1,149 +1,143 @@
-var cluster = require('cluster');
-var numCPUs = require('os').cpus().length;
+//var cluster = require('cluster');
+//var numCPUs = require('os').cpus().length;
+//var redis = require('socket.io/node_modules/redis');
 //var redis = require('socket.io/node_modules/redis');
 
-if (cluster.isMaster) {
 
-	/*for (var i = 0; i < numCPUs; i++) {
-        cluster.fork();
-    }*/
-	cluster.fork();
-	cluster.fork();
 	
-	cluster.on('disconnect', function(worker) {
-		console.error('disconnect!');
-		cluster.fork();
+var App = require('express')();
+var port = 8001;
+var Http = require('http');
+var SocketIO = require('socket.io');
+
+var io;
+var http;
+
+var Lobby = require('./lobby');
+var lobby = new Lobby();
+
+
+var d = require('domain').create();
+d.on('error', function(er) {
+  // The error won't crash the process, but what it does is worse!
+  // Though we've prevented abrupt process restarting, we are leaking
+  // resources like crazy if this ever happens.
+  // This is no better than process.on('uncaughtException')!
+  console.log('error, but oh well', er.message);
+    
+});
+
+// Because req and res were created before this domain existed,
+// we need to explicitly add them.
+// See the explanation of implicit vs explicit binding below.
+//d.add(req);
+//d.add(res);
+
+d.run(function() {
+
+	http = Http.createServer(App);
+	io = SocketIO(http);
+	
+	//route
+	App.get('/', function(req, res){
+		res.sendFile(__dirname + '/home.html');
 	});
 
-} else {
-	
-	var App = require('express')();
-	var port = 8001;
-	var Http = require('http');
-	var SocketIO = require('socket.io');
+	App.get('/home.html', function(req, res){
+		res.sendFile(__dirname + '/home.html');
+	});
 
-	var io;
-	var http;
-
-	var Lobby = require('./lobby');
-	var lobby = new Lobby();
-
-
-	var d = require('domain').create();
-	d.on('error', function(er) {
-	  // The error won't crash the process, but what it does is worse!
-	  // Though we've prevented abrupt process restarting, we are leaking
-	  // resources like crazy if this ever happens.
-	  // This is no better than process.on('uncaughtException')!
-	  console.log('error, but oh well', er.message);
-	  
-	  try {
-        // make sure we close down within 30 seconds
-        var killtimer = setTimeout(function() {
-          process.exit(1);
-        }, 30000);
-        // But don't keep the process open just for that!
-        killtimer.unref();
-
-        // stop taking new requests.
-        server.close();
-
-        // Let the master know we're dead.  This will trigger a
-        // 'disconnect' in the cluster master, and then it will fork
-        // a new worker.
-        cluster.worker.disconnect();
-
-        // try to send an error to the request that triggered the problem
-        res.statusCode = 500;
-        res.setHeader('content-type', 'text/plain');
-        res.end('Oops, there was a problem!\n');
-      } catch (er2) {
-        // oh well, not much we can do at this point.
-        console.error('Error sending 500!', er2.stack);
-      }
+	App.get('/chat.html', function(req, res){
+		res.sendFile(__dirname + '/chat.html');
 	});
 	
-	// Because req and res were created before this domain existed,
-    // we need to explicitly add them.
-    // See the explanation of implicit vs explicit binding below.
-	//d.add(req);
-    //d.add(res);
+	/*App.post('/APIgetMembers', function(req, res){
+		//res.send('hello');
+		var results = new Array();
+		if ( lobby ) {
+			results = lobby.getRoomList();
+		}
+		res.send(JSON.stringify(results));
+	});*/
 	
-	d.run(function() {
+	//排程廣播lobby info.
+	update_lobby_info();
+	
+	//socket.io
+	io.on('connection', function(socket){
 
-		http = Http.createServer(App);
-		io = SocketIO(http);
-		
-		//route
-		App.get('/', function(req, res){
-			res.sendFile(__dirname + '/home.html');
-		});
+		//socket join room
+		socket.on('join', function(name, roomId){
 
-		App.get('/home.html', function(req, res){
-			res.sendFile(__dirname + '/home.html');
-		});
-
-		App.get('/chat.html', function(req, res){
-			res.sendFile(__dirname + '/chat.html');
-		});
-		
-		//routing task, keep broadcast to socket
-		update_lobby_info();
-		
-		//socket.io
-		io.on('connection', function(socket){
-
-			socket.on('join', function(name, roomId){
+			//broadcast
+			socket.broadcast.to(roomId).emit('chat_message', name + ' 進到了聊天室!');
 			
-				console.log( 'ID: ' + socket.id + ', Name: ' + name + ' joined ' + roomId);	//log
-				
-				//broadcast
-				socket.broadcast.to(roomId).emit('chat_message', name + ' 進到了聊天室!');
-				
-				//object setting
-				lobby.addRoom(roomId, function(){
-				
-					//register update room info.
-					update_room_info(roomId)
-				});
-					
-				lobby.inRoom(roomId).addClient(socket.id, name);
-				
-				//socket setting
-				socket.join(roomId);
-				socket.roomId = roomId;
+			//create new room
+			lobby.addRoom(roomId, function(){
+			
+				//房間創造後, 排程廣播 room info.
+				update_room_info(roomId);
 			});
-			
-			socket.on('disconnect', function(){
-			
-				console.log('user disconnected: id ' + socket.id);	//log
-				
-				//broadcast
-				socket.broadcast.to(socket.roomId).emit('chat_message', lobby.inRoom(socket.roomId).getClient(socket.id).getName() + ' 離開了聊天室!');
-				
-				//remove client
-				lobby.inRoom(socket.roomId).removeClient(socket.id);
-				
-				//check room client number
-				if ( lobby.inRoom(socket.roomId).count() == 0 ) {
-					delete lobby.closeRoom( socket.roomId );
+			//add client into room
+			lobby.inRoom(roomId).addClient(socket.id, name, function(){
+
+				//將用戶加入房間後, 若是唯一一人，則指定為roomMaster
+				if (lobby.inRoom(roomId).total == 1) {
+					lobby.inRoom(roomId).setRoomMaster(socket.id);
 				}
 			});
-
-			socket.on('chat_message', function(msg){
-				console.log('message: ' + msg + ' from id ' + socket.id);
-
-				io.in(socket.roomId).emit('chat_message', lobby.inRoom(socket.roomId).getClient(socket.id).getName() + ': ' + msg);
-			});
+			
+			//socket setting
+			socket.join(roomId);
+			socket.roomId = roomId;
+			
+			//log
+			console.log( 'ID: ' + socket.id + ', Name: ' + name + ' joined ' + roomId);	//who joined the room.
+			console.log('role:' + lobby.inRoom(roomId).getClient(socket.id).role);	//current user role.
 		});
 		
-		//http server
-		http.listen(port, function(){
-			console.log('listening on *:' + port);
+		//socket disconnect
+		socket.on('disconnect', function(){
+
+			//broadcast
+			socket.broadcast.to(socket.roomId).emit('chat_message', lobby.inRoom(socket.roomId).getClient(socket.id).getName() + ' 離開了聊天室!');
+			
+			//roomMaster exit, transfer roomMaster
+			if ( lobby.inRoom(socket.roomId).getClient(socket.id).role == 'roomMaster' ) {
+				var nextClient = lobby.inRoom(socket.roomId).findNextClient(socket.id);
+				
+				if ( nextClient ) {
+					lobby.inRoom(socket.roomId).transferRoomMaster(socket.id, nextClient.id);
+				}
+			}
+			
+			//remove client
+			lobby.inRoom(socket.roomId).removeClient(socket.id);
+			
+			//check room client number, if no client, close the room.
+			if ( lobby.inRoom(socket.roomId).count() == 0 ) {
+				delete lobby.closeRoom( socket.roomId );
+			}
+			
+			//log
+			console.log('user disconnected: id ' + socket.id);
+		});
+
+		//socket chat_message
+		socket.on('chat_message', function(msg){
+		
+			io.in(socket.roomId).emit('chat_message', lobby.inRoom(socket.roomId).getClient(socket.id).getName() + ': ' + msg);
+				
+			//log
+			console.log('message: ' + msg + ' from id ' + socket.id + ' -- role: ' + lobby.inRoom(socket.roomId).getClient(socket.id).role);
 		});
 	});
 	
-}
+	//http server
+	http.listen(port, function(){
+		console.log('listening on *:' + port);
+	});
+});
 
 //lobby info.
 function update_lobby_info() {
@@ -152,7 +146,7 @@ function update_lobby_info() {
 	
 		var results = {};
 		results['total_room'] = lobby.count();		//room number
-		//results['test'] = lobby.hello();	//crash server
+		//results['crash'] = lobby.crash();	//crash
 		results['room_list'] = lobby.getRoomList();	//room list
 	
 		io.emit('lobby_info', JSON.stringify(results));
@@ -172,6 +166,7 @@ function update_room_info( roomId ) {
 			var results = {};
 			results['total_client'] = r.count();
 			results['client_list'] = r.getAllClientNameList();
+			results['room_master'] = r.getClient(r.roomMaster).getName();
 		
 			io.in(roomId).emit('room_info', JSON.stringify(results));
 			update_room_info(roomId);
