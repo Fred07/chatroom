@@ -1,0 +1,11 @@
+{
+  "name": "node_js",
+  "description": "hello world test app",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "cluster": "^0.7.7",
+    "domain": "0.0.0",
+    "express": "4.9.7"
+  }
+}
