@@ -1,11 +1,19 @@
 {
-  "name": "node_js",
-  "description": "hello world test app",
-  "version": "0.0.1",
-  "private": true,
+  "name": "chatroom",
+  "version": "0.0.0",
+  "description": "chatroom app",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [
+    "chatroom"
+  ],
+  "author": "Five",
+  "license": "BSD-2-Clause",
   "dependencies": {
-    "cluster": "^0.7.7",
-    "domain": "0.0.0",
-    "express": "4.9.7"
+    "express": "~4.9.7",
+    "socket.io": "~1.1.0"
   }
 }
