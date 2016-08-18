@@ -1,5 +1,8 @@
 var Room = require('./room');
 
+//var msg_greet = '{username} 進到了聊天室';
+//var msg_exit = '{username} 離開了聊天室';
+
 var Lobby = function() {
 	this.total = 0;
 	this.rooms = new Array();
@@ -42,5 +45,9 @@ Lobby.prototype.closeRoom = function( roomId ) {
 	delete this.rooms[roomId];
 	this.total--;
 }
+
+/*Lobby.prototype.broacastMsg = function( msg ) {
+	
+}*/
 
 module.exports = Lobby;
