@@ -50,6 +50,10 @@ d.run(function() {
 	App.get('/chat.html', function(req, res){
 		res.sendFile(__dirname + '/chat.html');
 	});
+
+	App.get('/dateChat.html', function(req, res){
+		res.sendFile(__dirname + '/dateChat.html');
+	});
 	
 	/*App.post('/APIgetMembers', function(req, res){
 		//res.send('hello');
@@ -70,7 +74,7 @@ d.run(function() {
 		socket.on('join', function(name, roomId){
 
 			//broadcast
-			socket.broadcast.to(roomId).emit('chat_message', name + ' 進到了聊天室!');
+			// socket.broadcast.to(roomId).emit('chat_message', name + ' 進到了聊天室!');
 			
 			//create new room
 			lobby.addRoom(roomId, function(){
