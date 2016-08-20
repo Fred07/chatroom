@@ -104,7 +104,7 @@ d.run(function() {
 		socket.on('disconnect', function(){
 
 			//broadcast
-			socket.broadcast.to(socket.roomId).emit('chat_message', lobby.inRoom(socket.roomId).getClient(socket.id).getName() + ' 離開了聊天室!');
+			// socket.broadcast.to(socket.roomId).emit('chat_message', lobby.inRoom(socket.roomId).getClient(socket.id).getName() + ' 離開了聊天室!');
 			
 			//roomMaster exit, transfer roomMaster
 			if ( lobby.inRoom(socket.roomId).getClient(socket.id).role == 'roomMaster' ) {
